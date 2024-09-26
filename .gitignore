@@ -1,0 +1,13 @@
+.DS_Store
+.vscode
+.env
+.venv
+.swp
+dist
+NodeMonitor
+.cache
+*.exe
+*.crt
+__debug_bin*
+*.log
+*.tmp
