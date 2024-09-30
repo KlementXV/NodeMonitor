@@ -1,0 +1,50 @@
+name: Go
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  version:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        
+      - id: version
+        run: echo version="$(cat go.mod | sed -n 's/^go \(.*\)/\1/p')" >> "$GITHUB_OUTPUT"
+
+  build:
+    runs-on: ubuntu-latest
+    needs: version
+    strategy:
+      matrix:
+        goos: [linux, windows, darwin]
+        goarch: [amd64, arm64]
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Go
+      uses: actions/setup-go@v4
+      with:
+        go-version: ${{ needs.version.outputs.version }}
+
+    - name: Build
+      run: |
+        mkdir -p output
+        GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} go build -o output/myapp-${{ matrix.goos }}-${{ matrix.goarch }} ./...
+
+    - name: Create archive
+      run: |
+        tar -czvf output/myapp-${{ matrix.goos }}-${{ matrix.goarch }}.tar.gz -C output myapp-${{ matrix.goos }}-${{ matrix.goarch }}
+
+    - name: Upload release asset
+      uses: actions/upload-release-asset@v1
+      with:
+        upload_url: ${{ github.event.release.upload_url }}
+        asset_path: ./output/myapp-${{ matrix.goos }}-${{ matrix.goarch }}.tar.gz
+        asset_name: myapp-${{ matrix.goos }}-${{ matrix.goarch }}.tar.gz
+        asset_content_type: application/gzip
