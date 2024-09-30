@@ -45,7 +45,7 @@ jobs:
           GOARCH: ${{ matrix.goarch }}
         run: |
           mkdir -p output
-          output_name="NodeMonitor-${{ matrix.goos }}-${{ matrix.goarch }}"
+          output_name="NodeMonitor-$GOOS-$GOARCH"
           if [ "$GOOS" == "windows" ]; then
             output_name="$output_name.exe"
           fi
@@ -53,13 +53,23 @@ jobs:
 
       - name: Set asset file and name
         id: set_output_file
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
         run: |
           if [ "$GOOS" == "windows" ]; then
-            echo "file=./output/NodeMonitor-${{ matrix.goos }}-${{ matrix.goarch }}.exe" >> "$GITHUB_OUTPUT"
-            echo "name=NodeMonitor-${{ matrix.goos }}-${{ matrix.goarch }}.exe" >> "$GITHUB_OUTPUT"
+            file="./output/NodeMonitor-$GOOS-$GOARCH.exe"
+            name="NodeMonitor-$GOOS-$GOARCH.exe"
           else
-            echo "file=./output/NodeMonitor-${{ matrix.goos }}-${{ matrix.goarch }}" >> "$GITHUB_OUTPUT"
-            echo "name=NodeMonitor-${{ matrix.goos }}-${{ matrix.goarch }}" >> "$GITHUB_OUTPUT"
+            file="./output/NodeMonitor-$GOOS-$GOARCH"
+            name="NodeMonitor-$GOOS-$GOARCH"
+          fi
+          if [ -f "$file" ]; then
+            echo "file=$file" >> "$GITHUB_OUTPUT"
+            echo "name=$name" >> "$GITHUB_OUTPUT"
+          else
+            echo "Erreur : le fichier $file n'existe pas."
+            exit 1
           fi
 
       - name: Upload release asset
