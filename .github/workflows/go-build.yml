@@ -1,8 +1,8 @@
 name: Golang Build
 
 on:
-    release:
-        types: [published]
+  release:
+    types: [published]
 
 jobs:
   version:
@@ -12,9 +12,16 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-        
+
       - id: version
-        run: echo version="$(cat go.mod | sed -n 's/^go \(.*\)/\1/p')" >> "$GITHUB_OUTPUT"
+        run: |
+          if [ -f go.mod ]; then
+            version=$(grep '^go [0-9]' go.mod | awk '{print $2}')
+            echo "version=$version" >> "$GITHUB_OUTPUT"
+          else
+            echo "Erreur : le fichier go.mod est introuvable."
+            exit 1
+          fi
 
   build:
     runs-on: ubuntu-latest
@@ -25,38 +32,43 @@ jobs:
         goarch: [amd64, arm64]
 
     steps:
-    - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-    - name: Set up Go
-      uses: actions/setup-go@v4
-      with:
-        go-version: ${{ needs.version.outputs.version }}
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: ${{ needs.version.outputs.version }}
 
-    - name: Build
-      run: |
-        mkdir -p output
-        if [ "${{ matrix.goos }}" == "windows" ]; then
-          GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} go build -o output/NodeMonitor-${{ matrix.goos }}-${{ matrix.goarch }}.exe ./...
-        else
-          GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} go build -o output/NodeMonitor-${{ matrix.goos }}-${{ matrix.goarch }} ./...
-        fi
-
-    - name: Upload release asset
-      uses: actions/upload-release-asset@v1
-      with:
-        upload_url: ${{ github.event.release.upload_url }}
-        asset_path: |
-          if [ "${{ matrix.goos }}" == "windows" ]; then
-            ./output/NodeMonitor-${{ matrix.goos }}-${{ matrix.goarch }}.exe
-          else
-            ./output/NodeMonitor-${{ matrix.goos }}-${{ matrix.goarch }}
+      - name: Build
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+        run: |
+          mkdir -p output
+          output_name="NodeMonitor-${{ matrix.goos }}-${{ matrix.goarch }}"
+          if [ "$GOOS" == "windows" ]; then
+            output_name="$output_name.exe"
           fi
-        asset_name: |
-          if [ "${{ matrix.goos }}" == "windows" ]; then
-            NodeMonitor-${{ matrix.goos }}-${{ matrix.goarch }}.exe
+          go build -o "output/$output_name" ./...
+
+      - name: Set asset file and name
+        id: set_output_file
+        run: |
+          if [ "$GOOS" == "windows" ]; then
+            echo "file=./output/NodeMonitor-${{ matrix.goos }}-${{ matrix.goarch }}.exe" >> "$GITHUB_OUTPUT"
+            echo "name=NodeMonitor-${{ matrix.goos }}-${{ matrix.goarch }}.exe" >> "$GITHUB_OUTPUT"
           else
-            NodeMonitor-${{ matrix.goos }}-${{ matrix.goarch }}
+            echo "file=./output/NodeMonitor-${{ matrix.goos }}-${{ matrix.goarch }}" >> "$GITHUB_OUTPUT"
+            echo "name=NodeMonitor-${{ matrix.goos }}-${{ matrix.goarch }}" >> "$GITHUB_OUTPUT"
           fi
-        asset_content_type: application/octet-stream
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload release asset
+        uses: actions/upload-release-asset@v1
+        with:
+          upload_url: ${{ github.event.release.upload_url }}
+          asset_path: ${{ steps.set_output_file.outputs.file }}
+          asset_name: ${{ steps.set_output_file.outputs.name }}
+          asset_content_type: application/octet-stream
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+=
