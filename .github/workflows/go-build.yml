@@ -1,8 +1,8 @@
-name: Go
+name: Golang Build
 
 on:
-  release:
-    types: [published]
+    release:
+        types: [published]
 
 jobs:
   version:
@@ -35,16 +35,28 @@ jobs:
     - name: Build
       run: |
         mkdir -p output
-        GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} go build -o output/NodeMonitor-${{ matrix.goos }}-${{ matrix.goarch }} ./...
-
-    - name: Create archive
-      run: |
-        tar -czvf output/NodeMonitor-${{ matrix.goos }}-${{ matrix.goarch }}.tar.gz -C output NodeMonitor-${{ matrix.goos }}-${{ matrix.goarch }}
+        if [ "${{ matrix.goos }}" == "windows" ]; then
+          GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} go build -o output/NodeMonitor-${{ matrix.goos }}-${{ matrix.goarch }}.exe ./...
+        else
+          GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} go build -o output/NodeMonitor-${{ matrix.goos }}-${{ matrix.goarch }} ./...
+        fi
 
     - name: Upload release asset
       uses: actions/upload-release-asset@v1
       with:
         upload_url: ${{ github.event.release.upload_url }}
-        asset_path: ./output/NodeMonitor-${{ matrix.goos }}-${{ matrix.goarch }}.tar.gz
-        asset_name: NodeMonitor-${{ matrix.goos }}-${{ matrix.goarch }}.tar.gz
-        asset_content_type: application/gzip
+        asset_path: |
+          if [ "${{ matrix.goos }}" == "windows" ]; then
+            ./output/NodeMonitor-${{ matrix.goos }}-${{ matrix.goarch }}.exe
+          else
+            ./output/NodeMonitor-${{ matrix.goos }}-${{ matrix.goarch }}
+          fi
+        asset_name: |
+          if [ "${{ matrix.goos }}" == "windows" ]; then
+            NodeMonitor-${{ matrix.goos }}-${{ matrix.goarch }}.exe
+          else
+            NodeMonitor-${{ matrix.goos }}-${{ matrix.goarch }}
+          fi
+        asset_content_type: application/octet-stream
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
