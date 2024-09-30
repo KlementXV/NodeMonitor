@@ -31,7 +31,7 @@ jobs:
     needs: version
     strategy:
       matrix:
-        goos: [linux, windows, darwin]
+        goos: [linux, windows, macos]
         goarch: [amd64, arm64]
 
     steps:
@@ -44,12 +44,17 @@ jobs:
 
       - name: Build
         env:
-          GOOS: ${{ matrix.goos }}
+          MATRIX_GOOS: ${{ matrix.goos }}
           GOARCH: ${{ matrix.goarch }}
         run: |
+          if [ "$MATRIX_GOOS" == "macos" ]; then
+            export GOOS="darwin"
+          else
+            export GOOS="$MATRIX_GOOS"
+          fi
           mkdir -p output
-          output_name="NodeMonitor-$GOOS-$GOARCH"
-          if [ "$GOOS" == "windows" ]; then
+          output_name="NodeMonitor-${MATRIX_GOOS}-$GOARCH"
+          if [ "$MATRIX_GOOS" == "windows" ]; then
             output_name="$output_name.exe"
           fi
           go build -o "output/$output_name" ./...
@@ -57,15 +62,19 @@ jobs:
       - name: Set asset file and name
         id: set_output_file
         env:
-          GOOS: ${{ matrix.goos }}
+          MATRIX_GOOS: ${{ matrix.goos }}
           GOARCH: ${{ matrix.goarch }}
         run: |
-          if [ "$GOOS" == "windows" ]; then
-            file="./output/NodeMonitor-$GOOS-$GOARCH.exe"
-            name="NodeMonitor-$GOOS-$GOARCH.exe"
+          if [ "$MATRIX_GOOS" == "macos" ]; then
+            file="./output/NodeMonitor-macos-$GOARCH"
+            name="NodeMonitor-macos-$GOARCH"
           else
-            file="./output/NodeMonitor-$GOOS-$GOARCH"
-            name="NodeMonitor-$GOOS-$GOARCH"
+            file="./output/NodeMonitor-$MATRIX_GOOS-$GOARCH"
+            name="NodeMonitor-$MATRIX_GOOS-$GOARCH"
+          fi
+          if [ "$MATRIX_GOOS" == "windows" ]; then
+            file="$file.exe"
+            name="$name.exe"
           fi
           if [ -f "$file" ]; then
             echo "file=$file" >> "$GITHUB_OUTPUT"
